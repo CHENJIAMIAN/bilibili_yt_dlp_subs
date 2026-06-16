@@ -224,6 +224,7 @@ def load_api_key() -> str:
 
 
 def main() -> int:
+    configure_console()
     args = parse_args()
     if args.concurrency < 1:
         print("错误：--concurrency 必须大于等于 1", file=sys.stderr)
@@ -296,6 +297,12 @@ def main() -> int:
 
     print("全部完成。")
     return 0
+
+
+def configure_console() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 if __name__ == "__main__":
