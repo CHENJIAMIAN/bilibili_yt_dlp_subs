@@ -19,6 +19,7 @@ PROMPT = """1、请返回您仔细阅读正文后精心写成的详尽笔记
 2、用中文分点结构化阐述
 3、不要遗漏任何一个有价值的细节"""
 RETRY_STATUSES = {429, 500, 502, 503, 504}
+USER_AGENT = "bilibili-yt-dlp-subs/1.0"
 
 
 class RetryableError(Exception):
@@ -83,6 +84,7 @@ def request_summary(api_key: str, subtitle_text: str, *, timeout: int) -> str:
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://localhost/bilibili-yt-dlp-subs",
+            "User-Agent": USER_AGENT,
             "X-Title": "bilibili yt-dlp subtitle summaries",
         },
     )
@@ -202,6 +204,25 @@ def append_failure(output_dir: Path, result: dict[str, Any]) -> None:
         fh.write(json.dumps(result, ensure_ascii=False) + "\n")
 
 
+def load_api_key() -> str:
+    api_key = os.environ.get("CERABRAS_API_KEY", "").strip()
+    if api_key:
+        return api_key
+
+    env_path = Path(".env.local")
+    if not env_path.exists():
+        return ""
+
+    for raw_line in env_path.read_text(encoding="utf-8-sig").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        if key.strip() == "CERABRAS_API_KEY":
+            return value.strip().strip('"').strip("'")
+    return ""
+
+
 def main() -> int:
     args = parse_args()
     if args.concurrency < 1:
@@ -231,9 +252,9 @@ def main() -> int:
             print(f"DRY-RUN {source.name} -> {output_path_for(source, output_dir).name}")
         return 0
 
-    api_key = os.environ.get("CERABRAS_API_KEY")
+    api_key = load_api_key()
     if not api_key:
-        print("错误：缺少环境变量 CERABRAS_API_KEY，请先在当前 shell 中设置 API key。", file=sys.stderr)
+        print("错误：缺少 CERABRAS_API_KEY，请先设置环境变量或填写 .env.local。", file=sys.stderr)
         return 2
 
     if not jobs:
